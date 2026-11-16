@@ -22,13 +22,13 @@ if (empty($job['paid'])) {
     $label = htmlspecialchars(config('site_name') . ' PREVIEW', ENT_QUOTES);
     $svg = rawurlencode(
         '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="220">'
-        . '<text x="50%" y="50%" fill="rgba(120,120,120,0.22)" font-family="Arial,sans-serif" font-size="22" font-weight="700" '
+        . '<text x="50%" y="50%" fill="rgba(156,123,62,0.22)" font-family="Arial,sans-serif" font-size="22" font-weight="700" '
         . 'text-anchor="middle" transform="rotate(-24 180 110)">' . $label . '</text></svg>'
     );
     $price = htmlspecialchars(format_price(), ENT_QUOTES);
     $watermark = <<<HTML
 <div aria-hidden="true" style="position:fixed;inset:0;z-index:2147483646;pointer-events:none;background-image:url('data:image/svg+xml,{$svg}');background-repeat:repeat;"></div>
-<div style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483647;pointer-events:none;background:rgba(17,17,27,.88);color:#fff;font:600 13px/1.2 system-ui,sans-serif;padding:10px 16px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.25);white-space:nowrap;">Preview only &middot; Pay {$price} to download without watermark</div>
+<div style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483647;pointer-events:none;background:rgba(11,10,8,.92);color:#ecd7a7;border:1px solid rgba(201,169,106,.6);font:500 12px/1.2 system-ui,sans-serif;letter-spacing:.08em;padding:11px 18px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.35);white-space:nowrap;">Preview only &middot; Pay {$price} to download without watermark</div>
 <script>document.addEventListener('contextmenu',function(e){e.preventDefault();});document.addEventListener('copy',function(e){e.preventDefault();});</script>
 HTML;
     $pos = strripos($html, '</body>');

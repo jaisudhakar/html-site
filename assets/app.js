@@ -134,10 +134,10 @@
       li.classList.toggle('active', i === idx);
     });
     var titles = {
-      upload: 'Uploading your design…',
-      read: 'Reading your design…',
-      code: 'Writing HTML & CSS…',
-      done: 'Done!'
+      upload: 'Receiving your design…',
+      read: 'Studying every detail…',
+      code: 'Crafting your website…',
+      done: 'Finished'
     };
     $('work-title').textContent = titles[stage];
   }
@@ -161,7 +161,7 @@
     show('working');
     setStage('upload');
     setProgress(2, false);
-    $('work-sub').textContent = 'This usually takes 1–3 minutes. You can keep this tab open in the background.';
+    $('work-sub').textContent = 'This usually takes 1–3 minutes. You may keep this tab open in the background.';
 
     var fd = new FormData();
     fd.append('design', state.file);
@@ -305,8 +305,8 @@
     $('paybox').hidden = paid;
     $('paidbox').hidden = !paid;
     $('result-sub').textContent = paid
-      ? 'Paid. Your download has no watermark.'
-      : 'Check the preview below. The watermark is removed in the file you download.';
+      ? 'Thank you. Your download carries no watermark.'
+      : 'Take a look below. The watermark is removed in the file you download.';
     if (paid && autoDownload) {
       $('preview-frame').src = previewUrl();
       window.location.href = $('download-btn').href;
@@ -341,7 +341,7 @@
           description: order.description,
           order_id: order.order_id,
           notes: { job_id: state.jobId },
-          theme: { color: '#5b47ff' },
+          theme: { color: '#c9a96a' },
           handler: function (resp) {
             btn.classList.add('loading');
             postJson('verify-payment.php', {
