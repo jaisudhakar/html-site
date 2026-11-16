@@ -14,6 +14,11 @@ use Anthropic\Core\Exceptions\OverloadedException;
 use Anthropic\Core\Exceptions\PermissionDeniedException;
 use Anthropic\Core\Exceptions\RateLimitException;
 
+/** A configuration problem only the site owner can fix (API key, credit, model name). */
+final class SetupException extends RuntimeException
+{
+}
+
 /**
  * Turns an uploaded website design image into a single self-contained HTML file using Claude.
  */
@@ -158,14 +163,14 @@ PROMPT;
      * A setup problem only the site owner can fix. Customers see a generic message; the exact cause
      * goes to the PHP error log, and is also shown on screen when testing on localhost.
      */
-    private static function ownerError(string $detail, ?Throwable $previous = null): RuntimeException
+    private static function ownerError(string $detail, ?Throwable $previous = null): SetupException
     {
         error_log('[design2html] Setup problem: ' . $detail);
         $message = 'The AI service is not configured correctly. Please contact the site owner.';
         if (is_local_request()) {
             $message .= ' Details for the site owner: ' . $detail;
         }
-        return new RuntimeException($message, 0, $previous);
+        return new SetupException($message, 0, $previous);
     }
 
     private static function apiMessage(APIStatusException $e): string

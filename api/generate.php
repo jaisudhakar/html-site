@@ -48,8 +48,14 @@ if ($job['state'] === 'done') {
     send_event('done', Jobs::publicView($job));
     exit;
 }
-if ((int) ($job['attempts'] ?? 0) >= MAX_ATTEMPTS) {
-    send_event('error', ['error' => 'This design failed several times. Please upload it again or try a different image.']);
+// Limit paid AI retries per upload. No limit when testing on localhost.
+if (!is_local_request() && (int) ($job['attempts'] ?? 0) >= MAX_ATTEMPTS) {
+    $last = (string) ($job['error'] ?? '');
+    send_event('error', [
+        'error' => 'This design failed ' . MAX_ATTEMPTS . ' times' . ($last !== '' ? ' (last error: ' . rtrim($last, '.') . ')' : '')
+            . '. Please start fresh or try a different image.',
+        'code' => 'attempts_exhausted',
+    ]);
     exit;
 }
 
@@ -89,7 +95,15 @@ try {
     if (!$e instanceof RuntimeException) {
         error_log('[design2html] generate failed: ' . $e);
     }
-    Jobs::set($id, ['state' => 'error', 'error' => $message]);
+    Jobs::update($id, static function (array $j) use ($e, $message): array {
+        $j['state'] = 'error';
+        $j['error'] = $message;
+        // Setup problems (API key, credit, model name) are not the design's fault: don't count them.
+        if ($e instanceof SetupException) {
+            $j['attempts'] = max(0, (int) ($j['attempts'] ?? 1) - 1);
+        }
+        return $j;
+    });
     send_event('error', ['error' => $message]);
 } finally {
     flock($lock, LOCK_UN);

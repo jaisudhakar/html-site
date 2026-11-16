@@ -223,7 +223,8 @@
       if (ev.data) {
         finished = true;
         stopWatching();
-        showFailure(JSON.parse(ev.data).error);
+        var info = JSON.parse(ev.data);
+        showFailure(info.error, info.code);
       } else if (!finished) {
         // Connection dropped (proxy timeout, phone sleep…). The server keeps working; poll instead.
         stopWatching();
@@ -253,13 +254,27 @@
       });
   }
 
-  function showFailure(msg) {
+  function showFailure(msg, code) {
+    state.exhausted = code === 'attempts_exhausted';
     show('error');
     $('error-text').textContent = msg || 'Please try again.';
+    $('retry-btn').textContent = state.exhausted
+      ? (state.file ? 'Start fresh with the same image' : 'Upload the design again')
+      : 'Try again';
   }
 
   $('retry-btn').addEventListener('click', function () {
-    if (state.jobId) startGeneration(); else resetToUpload();
+    if (state.exhausted || !state.jobId) {
+      if (state.file) {
+        // Same image and notes, new job.
+        state.exhausted = false;
+        $('upload-form').requestSubmit ? $('upload-form').requestSubmit() : $('generate-btn').click();
+      } else {
+        resetToUpload();
+      }
+      return;
+    }
+    startGeneration();
   });
 
   // ---------- step 3: result ----------
@@ -366,6 +381,7 @@
     state.jobId = null;
     state.job = null;
     state.file = null;
+    state.exhausted = false;
     setUrlJob(null);
     fileInput.value = '';
     $('notes').value = '';
