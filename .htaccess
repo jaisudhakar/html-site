@@ -1,0 +1,33 @@
+# Design2HTML - Apache / LiteSpeed configuration for cPanel
+
+Options -Indexes
+DirectoryIndex index.php
+
+# Block private files and folders from the web
+<FilesMatch "^(config\.php|config\.sample\.php|composer\.(json|lock)|README\.md|\.user\.ini|\.env.*|\.git.*)$">
+    Require all denied
+</FilesMatch>
+RewriteEngine On
+RewriteRule ^(src|storage|vendor|\.git)(/|$) - [F,L]
+
+# Live progress stream: no compression or buffering
+<IfModule mod_setenvif.c>
+    SetEnvIf Request_URI "generate\.php" no-gzip=1 dont-vary=1
+</IfModule>
+
+# Uploads (the PHP limit must be at least max_upload_mb in config.php)
+<IfModule mod_php.c>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 600
+</IfModule>
+<IfModule lsapi_module>
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 600
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
