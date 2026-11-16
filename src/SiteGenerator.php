@@ -9,7 +9,9 @@ use Anthropic\Core\Exceptions\APIConnectionException;
 use Anthropic\Core\Exceptions\APIStatusException;
 use Anthropic\Core\Exceptions\AuthenticationException;
 use Anthropic\Core\Exceptions\BadRequestException;
+use Anthropic\Core\Exceptions\NotFoundException;
 use Anthropic\Core\Exceptions\OverloadedException;
+use Anthropic\Core\Exceptions\PermissionDeniedException;
 use Anthropic\Core\Exceptions\RateLimitException;
 
 /**
@@ -53,8 +55,13 @@ PROMPT;
      */
     public static function generate(string $imagePath, string $mime, string $notes, callable $onProgress): string
     {
+        // Trim stray spaces/newlines that often sneak in when a key is copied.
+        $apiKey = trim((string) config('anthropic_api_key'), " \t\n\r\0\x0B\"'");
+        if ($apiKey === '' || str_contains($apiKey, 'xxxx')) {
+            throw self::ownerError('anthropic_api_key in config.php is not set. Paste your Claude API key there.');
+        }
         $client = new Client(
-            apiKey: (string) config('anthropic_api_key'),
+            apiKey: $apiKey,
             requestOptions: ['timeout' => 900.0, 'maxRetries' => 2],
         );
 
@@ -108,20 +115,31 @@ PROMPT;
                 }
             }
         } catch (AuthenticationException $e) {
-            error_log('[design2html] Anthropic auth error: ' . $e->getMessage());
-            throw new RuntimeException('The AI service is not configured correctly. Please contact the site owner.');
-        } catch (BadRequestException $e) {
-            error_log('[design2html] Anthropic bad request: ' . $e->getMessage());
-            throw new RuntimeException('The AI could not read this image. Try a PNG or JPG screenshot.');
+            throw self::ownerError('Claude rejected the API key in config.php (401: ' . self::apiMessage($e) . '). '
+                . 'Check that it is copied exactly and has not been deleted in the Claude Console.', $e);
+        } catch (PermissionDeniedException $e) {
+            throw self::ownerError('This API key is not allowed to use model "' . config('model') . '" (403: ' . self::apiMessage($e) . ').', $e);
+        } catch (NotFoundException $e) {
+            throw self::ownerError('Model "' . config('model') . '" was not found. Check the model name in config.php (404: ' . self::apiMessage($e) . ').', $e);
         } catch (RateLimitException | OverloadedException $e) {
-            error_log('[design2html] Anthropic busy: ' . $e->getMessage());
+            error_log('[design2html] Claude busy: ' . $e->getMessage());
             throw new RuntimeException('The AI is busy right now. Please try again in a minute.');
         } catch (APIStatusException $e) {
-            error_log('[design2html] Anthropic API error: ' . $e->getMessage());
+            $msg = self::apiMessage($e);
+            if ($e->getType() === 'billing_error' || stripos($msg, 'credit balance') !== false) {
+                throw self::ownerError('Your Claude API account has no credit left (' . $msg . '). Add credit in the Claude Console under Billing.', $e);
+            }
+            if ($e instanceof BadRequestException) {
+                error_log('[design2html] Claude bad request: ' . $e->getMessage());
+                throw new RuntimeException('The AI could not process this image. Try a PNG or JPG screenshot.'
+                    . (is_local_request() ? ' (Details for the site owner: ' . $msg . ')' : ''));
+            }
+            error_log('[design2html] Claude API error: ' . $e->getMessage());
             throw new RuntimeException('The AI service returned an error. Please try again.');
         } catch (APIConnectionException $e) {
-            error_log('[design2html] Anthropic connection error: ' . $e->getMessage());
-            throw new RuntimeException('Could not reach the AI service. Please try again.');
+            error_log('[design2html] Claude connection error: ' . $e->getMessage());
+            throw new RuntimeException('Could not reach the AI service. Please check the internet connection and try again.'
+                . (is_local_request() ? ' (Details for the site owner: ' . $e->getMessage() . ')' : ''));
         }
 
         if ($stopReason === 'refusal') {
@@ -134,6 +152,25 @@ PROMPT;
             throw new RuntimeException('The AI did not return a complete web page' . $suffix . '. Please try again.');
         }
         return $html;
+    }
+
+    /**
+     * A setup problem only the site owner can fix. Customers see a generic message; the exact cause
+     * goes to the PHP error log, and is also shown on screen when testing on localhost.
+     */
+    private static function ownerError(string $detail, ?Throwable $previous = null): RuntimeException
+    {
+        error_log('[design2html] Setup problem: ' . $detail);
+        $message = 'The AI service is not configured correctly. Please contact the site owner.';
+        if (is_local_request()) {
+            $message .= ' Details for the site owner: ' . $detail;
+        }
+        return new RuntimeException($message, 0, $previous);
+    }
+
+    private static function apiMessage(APIStatusException $e): string
+    {
+        return (string) ($e->getAPIMessage() ?? $e->getMessage());
     }
 
     /** Pulls the HTML document out of the model's reply, tolerating stray code fences or text. */

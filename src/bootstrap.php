@@ -87,6 +87,13 @@ function client_ip(): string
     return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 }
 
+/** True when the site is opened from the same computer (php -S localhost testing). */
+function is_local_request(): bool
+{
+    $ip = client_ip();
+    return $ip === '127.0.0.1' || $ip === '::1';
+}
+
 function format_price(): string
 {
     $paise = (int) config('price_paise');
